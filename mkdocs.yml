@@ -1,0 +1,19 @@
+site_name: pymdl
+site_description: Unofficial sync + async Python client for the MyDramaList app API
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+nav:
+  - Home: index.md
+  - API key extraction: api-key-extraction.md
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
