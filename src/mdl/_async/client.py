@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
-import httpx
+from typing import Any, Optional
 
 from ..auth import TokenStore
 from ..config import ClientConfig, Environment
@@ -40,7 +38,11 @@ class MDLClient:
     """Asynchronous MyDramaList API client.
 
     Resource groups are exposed as attributes, e.g. ``client.titles.get_title(123)``.
-    Supply the app ``mdl-api-key`` explicitly or via the ``MDL_API_KEY`` env var.
+    The ``mdl-api-key`` is generated automatically; pass ``api_key`` only to pin a value.
+
+    Production is behind Cloudflare TLS fingerprinting, so the default transport uses
+    ``curl_cffi`` to impersonate a real client (see ``impersonate``). Inject ``http_client``
+    to supply your own requests-compatible client instead.
     """
 
     def __init__(
@@ -52,9 +54,10 @@ class MDLClient:
         device_id: Optional[str] = None,
         lang_code: Optional[str] = None,
         timeout: float = 30.0,
+        impersonate: Optional[str] = None,
         token: Optional[str] = None,
         token_store: Optional[TokenStore] = None,
-        http_client: Optional[httpx.AsyncClient] = None,
+        http_client: Optional[Any] = None,
     ) -> None:
         config = ClientConfig.resolve(
             api_key,
@@ -63,6 +66,7 @@ class MDLClient:
             device_id=device_id,
             lang_code=lang_code,
             timeout=timeout,
+            impersonate=impersonate,
         )
         self._transport = AsyncTransport(config, token_store, client=http_client)
         if token:

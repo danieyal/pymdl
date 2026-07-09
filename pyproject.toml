@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "pymdl contributors" }]
-keywords = ["mydramalist", "mdl", "drama", "kdrama", "api", "client", "async", "httpx"]
+keywords = ["mydramalist", "mdl", "drama", "kdrama", "api", "client", "async", "curl_cffi"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -20,13 +20,16 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "httpx>=0.24",
+    "curl_cffi>=0.7",
     "pydantic>=2",
 ]
 
 [project.optional-dependencies]
 dev = [
     "unasync>=0.5",
+    # httpx + respx are test-only: the transport is client-agnostic and the suite injects
+    # an httpx client so respx can mock the network (curl_cffi is not respx-interceptable).
+    "httpx>=0.24",
     "respx>=0.20",
     "pytest>=7",
     "pytest-asyncio>=0.21",

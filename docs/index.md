@@ -16,14 +16,16 @@ as `mdl`.
 pip install pymdl
 ```
 
-You must supply the app's `mdl-api-key` — see [API key extraction](api-key-extraction.md).
+The `mdl-api-key` is a client-generated nonce, not a secret — one is generated for you. Note
+that production is behind Cloudflare TLS fingerprinting; see
+[the `mdl-api-key` notes](api-key-extraction.md).
 
 ## Sync
 
 ```python
 from mdl import MDLClient
 
-with MDLClient(api_key="...") as client:
+with MDLClient() as client:
     title = client.titles.get_title(686)
     print(title.title, title.rating)
 ```
@@ -35,7 +37,7 @@ import asyncio
 from mdl import AsyncMDLClient
 
 async def main():
-    async with AsyncMDLClient(api_key="...") as client:
+    async with AsyncMDLClient() as client:
         print((await client.titles.get_title(686)).title)
 
 asyncio.run(main())
@@ -44,7 +46,7 @@ asyncio.run(main())
 ## Authentication
 
 ```python
-with MDLClient(api_key="...") as client:
+with MDLClient() as client:
     client.auth.login("username", "password")   # MD5-hashed automatically
     print(client.account.get_profile().username)
 ```

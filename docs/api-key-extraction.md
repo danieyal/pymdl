@@ -1,47 +1,48 @@
-# Extracting the `mdl-api-key`
+# The `mdl-api-key` header
 
-Every request to the MyDramaList app API must carry two headers the app sets internally:
+**You do not need to extract anything.** Despite its name, `mdl-api-key` is not a secret and
+is not issued by the server — it is a **client-generated nonce**. This library generates a
+valid one for you automatically.
 
-- `mdl-api-key` — the app's API key (`Constants.apiKey`)
-- `version` — the app version string (e.g. `2.3.3`)
+## What it actually is
 
-The library does **not** ship the key. In the decompiled app, `Constants.apiKey` is a
-`static late` field **initialized at runtime**, so it is not a plain string constant you can
-grep out of the binary. The reliable way to obtain it is to observe a live request.
+Reverse engineering the app (see the Blutter disassembly under `resources/dart_out/`) shows
+the following chain:
 
-## Option A — Frida (recommended)
+- The HTTP layer sends `mdl-api-key: Constants.apiKey` on every request
+  (`services/custom_http_client.dart`).
+- `Constants.apiKey` is a `late` field whose initializer returns `AppManager.shared`'s key
+  field (`config/constants.dart`).
+- That field is written exactly once, at startup in `main()`, to the result of
+  `Utils.getRandomString()` (`main.dart`).
+- `Utils.getRandomString()` builds a **20-character string from `[a-zA-Z0-9]`** using
+  `Random._secureRandom` (`utils/utils.dart`).
 
-The reverse-engineering artifacts include a ready-to-use Frida script,
-`resources/dart_out/blutter_frida.js`, that can hook `CustomHttpClient.get/post` and log the
-live URL, headers and body of every request the app makes.
+So the value is random, regenerated on every app launch, and never compared against anything
+server-side.
 
-1. Install Frida and set up a rooted device / emulator with the MDL app.
-2. Attach Frida with the provided script and hook the HTTP client methods.
-3. Trigger any action in the app (open a title, search, log in).
-4. Read the `mdl-api-key` and `version` header values from the logged request.
+## Verified against production
 
-## Option B — Proxy capture
+Live requests to `https://app-api.mydramalist.com/v1` confirm it:
 
-Route the app's traffic through an intercepting proxy (mitmproxy / Charles) with the app's
-certificate pinning disabled, then read the `mdl-api-key` and `version` request headers from
-any captured call.
+- A freshly generated random key → `200 OK` with real data.
+- **No `mdl-api-key` header at all → also `200 OK`.**
+- The value has no effect on the response.
 
-## Using the values
+The real edge gate is **Cloudflare bot protection**, which fingerprints the client's TLS/HTTP2
+handshake (JA3/JA4) — not the `mdl-api-key`. A plain Python HTTP client is challenged with a
+`403 "Just a moment..."` page regardless of headers; a client that impersonates a real
+mobile/browser TLS fingerprint passes. See the transport notes in the README.
 
-```python
-from mdl import MDLClient
+## Using it
 
-client = MDLClient(api_key="<captured-key>", app_version="2.3.3")
-```
-
-Or via environment variables:
-
-```bash
-export MDL_API_KEY="<captured-key>"
-export MDL_APP_VERSION="2.3.3"
-```
+Nothing to do — just construct the client:
 
 ```python
 from mdl import MDLClient
-client = MDLClient()   # picks up MDL_API_KEY / MDL_APP_VERSION
+
+client = MDLClient()   # a valid mdl-api-key is generated automatically
 ```
+
+You may still pin a specific value if you want reproducible requests, via `api_key=` or the
+`MDL_API_KEY` environment variable, but it is optional and carries no security meaning.

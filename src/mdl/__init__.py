@@ -4,18 +4,19 @@ Quick start::
 
     from mdl import MDLClient
 
-    with MDLClient(api_key="...") as client:
+    with MDLClient() as client:
         title = client.titles.get_title(686)
         print(title.title)
 
     # async
     from mdl import AsyncMDLClient
 
-    async with AsyncMDLClient(api_key="...") as client:
+    async with AsyncMDLClient() as client:
         title = await client.titles.get_title(686)
 
-The ``mdl-api-key`` is not shipped with this library; supply it via ``api_key=`` or the
-``MDL_API_KEY`` environment variable (see ``docs/api-key-extraction.md``).
+The ``mdl-api-key`` is a client-generated nonce, not a secret; one is generated automatically
+when not supplied. Pin it via ``api_key=`` or ``MDL_API_KEY`` only if you want reproducible
+requests (see ``docs/api-key-extraction.md``).
 """
 
 from __future__ import annotations

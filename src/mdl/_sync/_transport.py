@@ -5,7 +5,7 @@ from __future__ import annotations
 import json as _jsonlib
 from typing import Any, Optional
 
-import httpx
+from curl_cffi.requests import Session
 
 from .._request import (
     PreparedRequest,
@@ -20,11 +20,15 @@ from ..errors import error_for_status
 
 
 class SyncTransport:
-    """Executes :class:`PreparedRequest` objects against the API over httpx.
+    """Executes :class:`PreparedRequest` objects against the API.
 
-    Owns an :class:`httpx.AsyncClient` unless one is injected (useful for tests). On a
-    401 the stored bearer token is cleared before the error is raised, mirroring the
-    app's behaviour.
+    By default it owns a :class:`curl_cffi.requests.AsyncSession` that impersonates a real
+    browser/mobile TLS fingerprint (``config.impersonate``) so requests clear Cloudflare's
+    bot challenge — a stock Python TLS stack is served a 403 and never reaches the API. Any
+    requests-compatible client (e.g. ``httpx.AsyncClient`` in tests) may be injected instead;
+    only ``.request()`` and the response's ``.status_code`` / ``.text`` / ``.headers`` are
+    used. On a 401 the stored bearer token is cleared before the error is raised, mirroring
+    the app's behaviour.
     """
 
     def __init__(
@@ -32,11 +36,13 @@ class SyncTransport:
         config: ClientConfig,
         token_store: Optional[TokenStore] = None,
         *,
-        client: Optional[httpx.Client] = None,
+        client: Optional[Any] = None,
     ) -> None:
         self._config = config
         self.tokens: TokenStore = token_store or InMemoryTokenStore()
-        self._client = client or httpx.Client(timeout=config.timeout)
+        self._client = client or Session(
+            timeout=config.timeout, impersonate=config.impersonate
+        )
         self._owns_client = client is None
 
     @property
@@ -68,7 +74,7 @@ class SyncTransport:
         response = self._client.request(prepared.method, url, **kwargs)
         return self._process(response, url)
 
-    def _process(self, response: httpx.Response, url: str) -> TransportResponse:
+    def _process(self, response: Any, url: str) -> TransportResponse:
         text = response.text
         parsed: Any = None
         if text:

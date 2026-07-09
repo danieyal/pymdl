@@ -20,6 +20,7 @@ SYNC_DIR = os.path.join(ROOT, "src", "mdl", "_sync") + os.sep
 
 REPLACEMENTS = {
     "AsyncClient": "Client",  # httpx.AsyncClient -> httpx.Client
+    "AsyncSession": "Session",  # curl_cffi.requests.AsyncSession -> Session
     "AsyncTransport": "SyncTransport",
     "AsyncResource": "Resource",
     "aclose": "close",
