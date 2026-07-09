@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import uuid
 from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
@@ -90,6 +91,9 @@ class FileTokenStore:
     def _save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text(json.dumps(self._data), encoding="utf-8")
+        # Bearer/refresh tokens are credentials: restrict to owner-only access
+        # regardless of the process umask (which commonly yields 0o644).
+        os.chmod(self._path, 0o600)
 
     def get_token(self) -> Optional[str]:
         return self._data.get("token")

@@ -83,6 +83,18 @@ def test_file_token_store_missing_file_is_empty(tmp_path) -> None:
     assert store.get_token() is None
 
 
+def test_file_token_store_restricts_file_permissions(tmp_path) -> None:
+    # A restrictive umask can't be assumed — verify the store explicitly
+    # tightens the file mode so bearer tokens aren't world-readable.
+    path = tmp_path / "token.json"
+    store = FileTokenStore(path)
+    store.set_token("secret-bearer")
+    assert (path.stat().st_mode & 0o777) == 0o600
+    # subsequent writes keep the restrictive mode
+    store.set_refresh_token("refresh")
+    assert (path.stat().st_mode & 0o777) == 0o600
+
+
 def test_client_accepts_initial_token_and_custom_store() -> None:
     store = InMemoryTokenStore()
     client = MDLClient(api_key="k", token="seed", token_store=store)
