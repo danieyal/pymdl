@@ -22,13 +22,14 @@ from ..errors import error_for_status
 class AsyncTransport:
     """Executes :class:`PreparedRequest` objects against the API.
 
-    By default it owns a :class:`curl_cffi.requests.AsyncSession` that impersonates a real
-    browser/mobile TLS fingerprint (``config.impersonate``) so requests clear Cloudflare's
-    bot challenge — a stock Python TLS stack is served a 403 and never reaches the API. Any
-    requests-compatible client (e.g. ``httpx.AsyncClient`` in tests) may be injected instead;
-    only ``.request()`` and the response's ``.status_code`` / ``.text`` / ``.headers`` are
-    used. On a 401 the stored bearer token is cleared before the error is raised, mirroring
-    the app's behaviour.
+    By default it owns a ``curl_cffi`` session (``curl_cffi.requests.Session`` /
+    ``AsyncSession``) that impersonates a real browser/mobile TLS fingerprint
+    (``config.impersonate``) so requests clear Cloudflare's bot challenge — a stock Python
+    TLS stack is served a 403 and never reaches the API. Any requests-compatible client (an
+    injected ``httpx`` client in tests, for example) may be supplied instead; only
+    ``.request()`` and the response's ``.status_code`` / ``.text`` / ``.headers`` are used.
+    On a 401 the stored bearer token is cleared before the error is raised, mirroring the
+    app's behaviour.
     """
 
     def __init__(
