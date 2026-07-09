@@ -14,7 +14,6 @@ from mdl._async._transport import AsyncTransport
 from mdl._sync._transport import SyncTransport
 from mdl.config import ClientConfig
 
-
 # --- sync ----------------------------------------------------------------
 
 def test_sync_transport_builds_curl_session_with_impersonate() -> None:
