@@ -21,17 +21,23 @@ pip install pymdl
 
 ## The `mdl-api-key`
 
-Every request needs the app's `mdl-api-key` header. This value is **not** shipped with the
-library — it is a runtime-initialized secret inside the app. You must extract it yourself
-and supply it via the `api_key=` argument or the `MDL_API_KEY` environment variable. See
+Despite its name, `mdl-api-key` is **not a secret** — the app fills it with a random 20-char
+string generated on each launch, and the server does not validate it. This library generates
+a valid one for you, so you do not need to extract or supply anything. You may still pin a
+value via `api_key=` or `MDL_API_KEY` for reproducible requests, but it is optional. See
 [docs/api-key-extraction.md](docs/api-key-extraction.md).
+
+> **Heads up — Cloudflare:** production sits behind Cloudflare bot protection that fingerprints
+> the client's TLS handshake. A plain `httpx`/`requests` client is served a `403 "Just a
+> moment..."` challenge; only a client impersonating a real mobile/browser TLS fingerprint
+> gets through. See [Transport](#transport).
 
 ## Quick start (sync)
 
 ```python
 from mdl import MDLClient
 
-with MDLClient(api_key="...") as client:
+with MDLClient() as client:   # api_key generated automatically
     title = client.titles.get_title(686)
     print(title.title, title.rating)
 
@@ -47,7 +53,7 @@ import asyncio
 from mdl import AsyncMDLClient
 
 async def main():
-    async with AsyncMDLClient(api_key="...") as client:
+    async with AsyncMDLClient() as client:
         title = await client.titles.get_title(686)
         print(title.title)
 
@@ -57,7 +63,7 @@ asyncio.run(main())
 ## Authentication
 
 ```python
-with MDLClient(api_key="...") as client:
+with MDLClient() as client:
     client.auth.login("username", "password")   # password is MD5-hashed for you
     profile = client.account.get_profile()       # bearer token attached automatically
     print(profile.username)
@@ -68,8 +74,22 @@ Tokens are held in an in-memory store by default. Persist them with `FileTokenSt
 ```python
 from mdl import MDLClient, FileTokenStore
 
-client = MDLClient(api_key="...", token_store=FileTokenStore("~/.mydramalist/token.json"))
+client = MDLClient(token_store=FileTokenStore("~/.mydramalist/token.json"))
 ```
+
+## Transport
+
+Production MyDramaList sits behind **Cloudflare bot protection** that fingerprints the
+client's TLS/HTTP2 handshake (JA3/JA4). This is the real access gate — not the `mdl-api-key`.
+
+A plain `httpx`/`requests` client (a stock Python TLS stack) is served Cloudflare's
+`403 "Just a moment..."` challenge on every request, regardless of headers or User-Agent.
+Only a client that impersonates a real mobile/browser TLS fingerprint is allowed through — in
+testing, [`curl_cffi`](https://github.com/lexiforest/curl_cffi) with `impersonate="safari_ios"`
+(or `chrome`) reaches the API and returns real JSON.
+
+If you get `403` responses with a `"Just a moment..."` HTML body, this is why: the request
+never reached the API, it was stopped at Cloudflare's edge.
 
 ## Resource groups
 

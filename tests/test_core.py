@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from mdl import (
     ClientConfig,
     Environment,
@@ -25,10 +23,14 @@ from mdl.models.base import resolve_image_url
 
 # --- config --------------------------------------------------------------
 
-def test_config_requires_api_key(monkeypatch) -> None:
+def test_config_generates_api_key_when_absent(monkeypatch) -> None:
     monkeypatch.delenv("MDL_API_KEY", raising=False)
-    with pytest.raises(ValueError, match="mdl-api-key"):
-        ClientConfig.resolve(None)
+    config = ClientConfig.resolve(None)
+    # Mirrors the app's Utils.getRandomString(): 20 chars from [a-zA-Z0-9].
+    assert len(config.api_key) == 20
+    assert config.api_key.isalnum() and config.api_key.isascii()
+    # Generated keys are random, not a fixed constant.
+    assert ClientConfig.resolve(None).api_key != config.api_key
 
 
 def test_config_reads_env(monkeypatch) -> None:
