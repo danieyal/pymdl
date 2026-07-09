@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json as _jsonlib
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from curl_cffi.requests import Session
 
@@ -40,8 +40,11 @@ class SyncTransport:
     ) -> None:
         self._config = config
         self.tokens: TokenStore = token_store or InMemoryTokenStore()
-        self._client = client or Session(
-            timeout=config.timeout, impersonate=config.impersonate
+        # Typed Any: the transport accepts any requests-compatible client (curl_cffi or an
+        # injected httpx client). curl_cffi types ``impersonate`` as a Literal of known
+        # fingerprint names; we allow any string so new targets work without a lib bump.
+        self._client: Any = client or Session(
+            timeout=config.timeout, impersonate=cast(Any, config.impersonate)
         )
         self._owns_client = client is None
 
