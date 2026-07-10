@@ -30,7 +30,7 @@ dev = [
     # httpx + respx are test-only: the transport is client-agnostic and the suite injects
     # an httpx client so respx can mock the network (curl_cffi is not respx-interceptable).
     "httpx>=0.24",
-    "respx>=0.20",
+    "respx>=0.23.1",
     "pytest>=7",
     "pytest-asyncio>=0.21",
     "pytest-cov>=4",
