@@ -77,6 +77,10 @@ from mdl import MDLClient, FileTokenStore
 client = MDLClient(token_store=FileTokenStore("~/.mydramalist/token.json"))
 ```
 
+The client clears stored tokens on 401 and raises `MDLAuthError`. Automatic
+token refresh via `refresh_token` is not yet implemented — callers must
+re-authenticate when the access token expires.
+
 ## Transport
 
 Production MyDramaList sits behind **Cloudflare bot protection** that fingerprints the

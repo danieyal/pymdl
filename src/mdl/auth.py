@@ -34,6 +34,16 @@ class TokenStore(Protocol):
     Implementations back the ``Authorization: Bearer <token>`` header. The client reads
     :meth:`get_token` before each authenticated request and calls :meth:`set_token` after
     a successful login, or :meth:`clear` on a 401.
+
+    .. note::
+
+       The ``refresh_token`` is stored after login but is **not** automatically consumed
+       by the client — there is no auto-refresh on 401.
+       When an authenticated request receives a 401
+       (for example, because the access token expires), an
+       :class:`~mdl.errors.MDLAuthError` is raised and the
+       stored token is cleared.
+       The caller must re-login manually.
     """
 
     def get_token(self) -> Optional[str]: ...
