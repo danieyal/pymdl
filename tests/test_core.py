@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from mdl import (
     ClientConfig,
@@ -84,15 +85,18 @@ def test_file_token_store_missing_file_is_empty(tmp_path) -> None:
 
 
 def test_file_token_store_restricts_file_permissions(tmp_path) -> None:
-    # A restrictive umask can't be assumed — verify the store explicitly
-    # tightens the file mode so bearer tokens aren't world-readable.
+    # Force a permissive umask so the file would emerge 0o666 if the store
+    # relied on the process umask — proving the store's 0o600 is intrinsic.
     path = tmp_path / "token.json"
     store = FileTokenStore(path)
-    store.set_token("secret-bearer")
-    assert (path.stat().st_mode & 0o777) == 0o600
-    # subsequent writes keep the restrictive mode
-    store.set_refresh_token("refresh")
-    assert (path.stat().st_mode & 0o777) == 0o600
+    old = os.umask(0o000)
+    try:
+        store.set_token("secret-bearer")
+        assert (path.stat().st_mode & 0o777) == 0o600
+        store.set_refresh_token("refresh")
+        assert (path.stat().st_mode & 0o777) == 0o600
+    finally:
+        os.umask(old)
 
 
 def test_client_accepts_initial_token_and_custom_store() -> None:

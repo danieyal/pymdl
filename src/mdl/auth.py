@@ -90,10 +90,23 @@ class FileTokenStore:
 
     def _save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps(self._data), encoding="utf-8")
-        # Bearer/refresh tokens are credentials: restrict to owner-only access
-        # regardless of the process umask (which commonly yields 0o644).
-        os.chmod(self._path, 0o600)
+        payload = json.dumps(self._data)
+        # Write to a temp file created with owner-only permissions, then atomically
+        # replace the target — avoids a TOCTOU window where the target file briefly
+        # exists at the process umask before a chmod tightens it.
+        fd = os.open(
+            self._path.parent / f".{self._path.name}.tmp",
+            os.O_CREAT | os.O_WRONLY | os.O_TRUNC,
+            0o600,
+        )
+        try:
+            os.write(fd, payload.encode("utf-8"))
+        finally:
+            os.close(fd)
+        os.replace(
+            self._path.parent / f".{self._path.name}.tmp",
+            self._path,
+        )
 
     def get_token(self) -> Optional[str]:
         return self._data.get("token")
