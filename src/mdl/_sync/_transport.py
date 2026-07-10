@@ -99,7 +99,10 @@ class SyncTransport:
             status_code=response.status_code,
             json=parsed,
             text=text,
-            headers=dict(response.headers),
+            # Lowercase header keys so lookups by the (always-lowercase) header
+            # constants match regardless of the casing the server/Cloudflare used
+            # on the wire — HTTP headers are case-insensitive, but a plain dict is not.
+            headers={str(k).lower(): v for k, v in response.headers.items()},
             url=url,
         )
 
