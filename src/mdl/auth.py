@@ -36,8 +36,8 @@ class TokenStore(Protocol):
     .. note::
 
        The ``refresh_token`` is stored after login but is **not** automatically consumed
-       by the client — there is no auto-refresh on 401. When the access token expires,
-       an :class:`~mdl.errors.MDLAuthError` is raised and the stored token is cleared.
+       by the client — there is no auto-refresh on 401. When an authenticated request receives a 401 (for example, because the
+       access token expires), an :class:`~mdl.errors.MDLAuthError` is raised and the stored token is cleared.
        The caller must re-login manually.
     """
 
