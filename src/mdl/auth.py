@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
@@ -89,7 +91,27 @@ class FileTokenStore:
 
     def _save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps(self._data), encoding="utf-8")
+        payload = json.dumps(self._data)
+        # Write to a uniquely-named temp file with owner-only permissions,
+        # then atomically replace the target. mkstemp avoids races with
+        # concurrent writers (O_EXCL); fchmod tightens the file before any
+        # bytes land on disk. The temp file is unlinked on failure.
+        tmp_fd, tmp_name = tempfile.mkstemp(
+            dir=self._path.parent, prefix=f".{self._path.name}."
+        )
+        os.fchmod(tmp_fd, 0o600)
+        try:
+            os.write(tmp_fd, payload.encode("utf-8"))
+            os.fsync(tmp_fd)
+            os.replace(tmp_name, self._path)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass  # already gone if replace partially succeeded
+            raise
+        finally:
+            os.close(tmp_fd)
 
     def get_token(self) -> Optional[str]:
         return self._data.get("token")
