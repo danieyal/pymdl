@@ -33,6 +33,7 @@ dev = [
     "respx>=0.20",
     "pytest>=7",
     "pytest-asyncio>=0.21",
+    "pytest-cov>=4",
     "ruff>=0.1",
     "mypy>=1.5",
 ]
