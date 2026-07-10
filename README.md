@@ -2,7 +2,7 @@
 
 An **unofficial**, fully-typed, sync **and** async Python client for the private
 MyDramaList app API (`https://app-api.mydramalist.com/v1`), reconstructed from the app's
-reverse-engineered spec. Built on [httpx](https://www.python-httpx.org/) and
+reverse-engineered spec. Built on [curl_cffi](https://github.com/lexiforest/curl_cffi) and
 [Pydantic v2](https://docs.pydantic.dev/).
 
 Install as `pymdl`; import as `mdl`.
