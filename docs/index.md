@@ -1,7 +1,7 @@
 # pymdl
 
 An **unofficial**, fully-typed, sync **and** async Python client for the private
-MyDramaList app API, built on httpx and Pydantic v2. Install as `pymdl`; import
+MyDramaList app API, built on curl_cffi and Pydantic v2. Install as `pymdl`; import
 as `mdl`.
 
 !!! warning "Interoperability / research tool"
@@ -53,7 +53,7 @@ with MDLClient() as client:
 
 ## Errors
 
-All errors derive from `mydramalist.MDLError`. HTTP failures raise `MDLNetworkError`
+All errors derive from `mdl.MDLError`. HTTP failures raise `MDLNetworkError`
 subclasses (`MDLAuthError` for 401, `MDLNotFoundError` for 404, `MDLRateLimitedError` for
 429, `MDLServerError` for 5xx), each carrying `.status_code`, `.message`, and `.body`.
 
