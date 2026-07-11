@@ -1,19 +1,19 @@
-# pymdl
+# mdl
 
 An **unofficial**, fully-typed, sync **and** async Python client for the private
-MyDramaList app API, built on curl_cffi and Pydantic v2. Install as `pymdl`; import
+MyDramaList app API, built on curl_cffi and Pydantic v2. Install as `mdl`; import
 as `mdl`.
 
 !!! warning "Interoperability / research tool"
-    This library targets an **undocumented, private** API discovered by decompiling the
-    MyDramaList Flutter app. Paths and field names may change without notice. Use
-    responsibly and in accordance with MyDramaList's Terms of Service. Not affiliated with
-    or endorsed by MyDramaList.
+This library targets an **undocumented, private** API discovered by decompiling the
+MyDramaList Flutter app. Paths and field names may change without notice. Use
+responsibly and in accordance with MyDramaList's Terms of Service. Not affiliated with
+or endorsed by MyDramaList.
 
 ## Install
 
 ```bash
-pip install pymdl
+pip install mdl
 ```
 
 The `mdl-api-key` is a client-generated nonce, not a secret — one is generated for you. Note

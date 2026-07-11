@@ -1,4 +1,4 @@
-"""mdl (pymdl) — a fully-typed sync + async Python client for the MyDramaList app API.
+"""mdl — a fully-typed sync + async Python client for the MyDramaList app API.
 
 Quick start::
 
