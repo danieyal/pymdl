@@ -1,7 +1,7 @@
 # mdl
 
 An **unofficial**, fully-typed, sync **and** async Python client for the private
-MyDramaList app API, built on curl_cffi and Pydantic v2. Install as `mdl`; import
+MyDramaList app API, built on curl_cffi and Pydantic v2. Install as `mydramalist-client`; import
 as `mdl`.
 
 !!! warning "Interoperability / research tool"
@@ -13,7 +13,7 @@ or endorsed by MyDramaList.
 ## Install
 
 ```bash
-pip install mdl
+pip install mydramalist-client
 ```
 
 The `mdl-api-key` is a client-generated nonce, not a secret — one is generated for you. Note

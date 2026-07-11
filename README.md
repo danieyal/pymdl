@@ -5,7 +5,7 @@ MyDramaList app API (`https://app-api.mydramalist.com/v1`), reconstructed from t
 reverse-engineered spec. Built on [curl_cffi](https://github.com/lexiforest/curl_cffi) and
 [Pydantic v2](https://docs.pydantic.dev/).
 
-Install as `mdl`; import as `mdl`.
+Install as `mydramalist-client`; import as `mdl`.
 
 > **Interoperability / research tool.** This library targets an **undocumented, private**
 > API discovered by decompiling the MyDramaList Flutter app. Endpoint paths and field
@@ -16,7 +16,7 @@ Install as `mdl`; import as `mdl`.
 ## Install
 
 ```bash
-pip install mdl
+pip install mydramalist-client
 ```
 
 ## The `mdl-api-key`
