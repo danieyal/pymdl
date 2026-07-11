@@ -1,4 +1,4 @@
-site_name: pymdl
+site_name: mydramalist-client
 site_description: Unofficial sync + async Python client for the MyDramaList app API
 theme:
   name: material

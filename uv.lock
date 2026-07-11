@@ -1611,7 +1611,7 @@ wheels = [
 ]
 
 [[package]]
-name = "pymdl"
+name = "mydramalist-client"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

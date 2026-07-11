@@ -1,11 +1,11 @@
-# pymdl
+# mdl
 
 An **unofficial**, fully-typed, sync **and** async Python client for the private
 MyDramaList app API (`https://app-api.mydramalist.com/v1`), reconstructed from the app's
 reverse-engineered spec. Built on [curl_cffi](https://github.com/lexiforest/curl_cffi) and
 [Pydantic v2](https://docs.pydantic.dev/).
 
-Install as `pymdl`; import as `mdl`.
+Install as `mydramalist-client`; import as `mdl`.
 
 > **Interoperability / research tool.** This library targets an **undocumented, private**
 > API discovered by decompiling the MyDramaList Flutter app. Endpoint paths and field
@@ -16,7 +16,7 @@ Install as `pymdl`; import as `mdl`.
 ## Install
 
 ```bash
-pip install pymdl
+pip install mydramalist-client
 ```
 
 ## The `mdl-api-key`
@@ -29,7 +29,7 @@ value via `api_key=` or `MDL_API_KEY` for reproducible requests, but it is optio
 
 > **Heads up — Cloudflare:** production sits behind Cloudflare bot protection that fingerprints
 > the client's TLS handshake. A plain `httpx`/`requests` client is served a `403 "Just a
-> moment..."` challenge; only a client impersonating a real mobile/browser TLS fingerprint
+moment..."` challenge; only a client impersonating a real mobile/browser TLS fingerprint
 > gets through. See [Transport](#transport).
 
 ## Quick start (sync)
@@ -99,23 +99,23 @@ never reached the API, it was stopped at Cloudflare's edge.
 
 The client exposes one attribute per API area, e.g.:
 
-| Attribute | Area |
-|-----------|------|
-| `client.auth` | login, social auth, register, reset password |
-| `client.account` | own profile/settings, verification, devices, payments |
-| `client.users` | other users & people pages, credits, likes |
-| `client.titles` | title detail, progress, reviews, recommendations, credits, genres |
-| `client.search` | title & people search |
-| `client.explore` | trending / top_airing / upcoming / recommended feeds |
-| `client.reviews` | review CRUD, voting |
-| `client.comments` | comment listing & CRUD |
-| `client.watchlist` | watchlist sync (add/remove/status lists) |
-| `client.custom_lists` | custom lists, items, votes |
-| `client.feeds` | activity feed, posts, embeds, uploads |
-| `client.articles` | articles |
-| `client.friends` / `client.messages` / `client.notifications` / `client.groups` | social |
-| `client.subscription` / `client.flowers` / `client.awards` / `client.reports` | misc |
-| `client.calendar` / `client.leaderboard` | calendar & leaderboard |
+| Attribute                                                                       | Area                                                              |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `client.auth`                                                                   | login, social auth, register, reset password                      |
+| `client.account`                                                                | own profile/settings, verification, devices, payments             |
+| `client.users`                                                                  | other users & people pages, credits, likes                        |
+| `client.titles`                                                                 | title detail, progress, reviews, recommendations, credits, genres |
+| `client.search`                                                                 | title & people search                                             |
+| `client.explore`                                                                | trending / top_airing / upcoming / recommended feeds              |
+| `client.reviews`                                                                | review CRUD, voting                                               |
+| `client.comments`                                                               | comment listing & CRUD                                            |
+| `client.watchlist`                                                              | watchlist sync (add/remove/status lists)                          |
+| `client.custom_lists`                                                           | custom lists, items, votes                                        |
+| `client.feeds`                                                                  | activity feed, posts, embeds, uploads                             |
+| `client.articles`                                                               | articles                                                          |
+| `client.friends` / `client.messages` / `client.notifications` / `client.groups` | social                                                            |
+| `client.subscription` / `client.flowers` / `client.awards` / `client.reports`   | misc                                                              |
+| `client.calendar` / `client.leaderboard`                                        | calendar & leaderboard                                            |
 
 ## Development
 
