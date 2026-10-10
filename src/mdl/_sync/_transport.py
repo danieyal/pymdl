@@ -76,9 +76,11 @@ class SyncTransport:
             kwargs["json"] = prepared.json
 
         response = self._client.request(prepared.method, url, **kwargs)
-        return self._process(response, url)
+        return self._process(response, url, authenticated=token is not None)
 
-    def _process(self, response: Any, url: str) -> TransportResponse:
+    def _process(
+        self, response: Any, url: str, *, authenticated: bool = True
+    ) -> TransportResponse:
         text = response.text
         parsed: Any = None
         if text:
@@ -92,7 +94,11 @@ class SyncTransport:
                 self.tokens.clear()
             message = extract_error_message(parsed if parsed is not None else text)
             raise error_for_status(
-                response.status_code, message, body=parsed if parsed is not None else text, url=url
+                response.status_code,
+                message,
+                body=parsed if parsed is not None else text,
+                url=url,
+                authenticated=authenticated,
             )
 
         return TransportResponse(

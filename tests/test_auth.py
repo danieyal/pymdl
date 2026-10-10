@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 
+import pytest
 import respx
 from httpx import Response
 from tests.conftest import BASE_URL
 
 from mdl.auth import md5_password
+from mdl.errors import MDLAuthError, MDLServerError
 
 
 @respx.mock
@@ -40,6 +42,37 @@ async def test_login_async(async_client) -> None:
     auth = await async_client.auth.login("bob", "pw", device_id="d")
     assert auth.access_token == "T2"
     assert async_client.tokens.get_token() == "T2"
+
+
+@respx.mock
+def test_login_bad_credentials_raises_auth_error(sync_client) -> None:
+    # The API reports bad credentials as 400, not 401.
+    respx.post(url__regex=rf"{BASE_URL}/auth/login.*").mock(
+        return_value=Response(400, json={"code": 400, "message": "Invalid password or username."})
+    )
+    with pytest.raises(MDLAuthError) as excinfo:
+        sync_client.auth.login("alice", "wrong", device_id="d")
+    assert excinfo.value.status_code == 400
+    assert excinfo.value.message == "Invalid password or username."
+    assert sync_client.tokens.get_token() is None
+
+
+@respx.mock
+async def test_login_bad_credentials_raises_auth_error_async(async_client) -> None:
+    respx.post(url__regex=rf"{BASE_URL}/auth/login.*").mock(
+        return_value=Response(400, json={"code": 400, "message": "Invalid password or username."})
+    )
+    with pytest.raises(MDLAuthError):
+        await async_client.auth.login("alice", "wrong", device_id="d")
+
+
+@respx.mock
+def test_login_server_error_is_not_auth_error(sync_client) -> None:
+    respx.post(url__regex=rf"{BASE_URL}/auth/login.*").mock(
+        return_value=Response(500, json={"message": "boom"})
+    )
+    with pytest.raises(MDLServerError):
+        sync_client.auth.login("alice", "pw", device_id="d")
 
 
 @respx.mock

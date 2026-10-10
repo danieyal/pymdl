@@ -5,6 +5,7 @@ Quick start::
     from mdl import MDLClient
 
     with MDLClient() as client:
+        client.auth.login("username", "password")  # title & search endpoints need a login
         title = client.titles.get_title(686)
         print(title.title)
 
@@ -12,6 +13,7 @@ Quick start::
     from mdl import AsyncMDLClient
 
     async with AsyncMDLClient() as client:
+        await client.auth.login("username", "password")
         title = await client.titles.get_title(686)
 
 The ``mdl-api-key`` is a client-generated nonce, not a secret; one is generated automatically
@@ -31,6 +33,7 @@ from .errors import (
     MDLConfigError,
     MDLError,
     MDLForbiddenError,
+    MDLLoginRequiredError,
     MDLNetworkError,
     MDLNotFoundError,
     MDLRateLimitedError,
@@ -52,6 +55,7 @@ __all__ = [
     "MDLConfigError",
     "MDLNetworkError",
     "MDLAuthError",
+    "MDLLoginRequiredError",
     "MDLForbiddenError",
     "MDLNotFoundError",
     "MDLRateLimitedError",

@@ -9,7 +9,12 @@ import respx
 from httpx import Response
 from tests.conftest import BASE_URL
 
-from mdl.errors import MDLAuthError, MDLNotFoundError
+from mdl.errors import (
+    MDLAuthError,
+    MDLLoginRequiredError,
+    MDLNetworkError,
+    MDLNotFoundError,
+)
 from mdl.models import MovieStatusType
 
 
@@ -23,6 +28,23 @@ def test_fetch_watchlist_status_segment(sync_client) -> None:
     assert movies[0].list_id == 1
     assert movies[0].title.id == 9
     assert route.called
+
+
+@pytest.mark.parametrize("status", [MovieStatusType.WATCHING, "watching"])
+@respx.mock
+def test_fetch_watching_uses_watchlist_segment(sync_client, status) -> None:
+    sync_client.tokens.set_token("t")
+    route = respx.get(f"{BASE_URL}/sync/mylist/watchlist").mock(
+        return_value=Response(200, json=[{"list_id": 1, "title": {"id": 9}}])
+    )
+    movies = sync_client.watchlist.fetch(status)
+    assert movies[0].title.id == 9
+    assert route.called
+
+
+def test_mylist_path_maps_watching_to_watchlist() -> None:
+    assert MovieStatusType.WATCHING.mylist_path() == "/sync/mylist/watchlist"
+    assert MovieStatusType.PLAN_TO_WATCH.mylist_path() == "/sync/mylist/plantowatch"
 
 
 @respx.mock
@@ -57,6 +79,46 @@ def test_401_clears_token_and_raises_auth_error(sync_client) -> None:
     assert excinfo.value.message == "unauthorized"
     # token cleared on 401
     assert sync_client.tokens.get_token() is None
+
+
+@respx.mock
+def test_anonymous_bare_400_raises_login_required(sync_client) -> None:
+    # Login-only endpoints answer an anonymous request with a bare text/plain 400.
+    respx.get(f"{BASE_URL}/titles/1").mock(
+        return_value=Response(
+            400,
+            text='{"code":400,"message":"Bad Request"}\n',
+            headers={"Content-Type": "text/plain; charset=utf-8"},
+        )
+    )
+    with pytest.raises(MDLLoginRequiredError) as excinfo:
+        sync_client.titles.get_title(1)
+    assert isinstance(excinfo.value, MDLAuthError)
+    assert excinfo.value.status_code == 400
+    assert "auth.login()" in excinfo.value.message
+
+
+@respx.mock
+def test_authenticated_400_is_not_login_required(sync_client) -> None:
+    sync_client.tokens.set_token("t")
+    respx.get(f"{BASE_URL}/titles/1").mock(
+        return_value=Response(400, json={"code": 400, "message": "Bad Request"})
+    )
+    with pytest.raises(MDLNetworkError) as excinfo:
+        sync_client.titles.get_title(1)
+    assert not isinstance(excinfo.value, MDLAuthError)
+    # the token is kept: only a 401 clears it
+    assert sync_client.tokens.get_token() == "t"
+
+
+@respx.mock
+def test_anonymous_validation_400_is_not_login_required(sync_client) -> None:
+    respx.get(f"{BASE_URL}/genres").mock(
+        return_value=Response(400, json={"code": 400, "message": "Invalid or missing parameters."})
+    )
+    with pytest.raises(MDLNetworkError) as excinfo:
+        sync_client.titles.get_genres()
+    assert not isinstance(excinfo.value, MDLAuthError)
 
 
 @respx.mock

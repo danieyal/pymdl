@@ -38,6 +38,7 @@ moment..."` challenge; only a client impersonating a real mobile/browser TLS fin
 from mdl import MDLClient
 
 with MDLClient() as client:   # api_key generated automatically
+    client.auth.login("username", "password")   # title & search endpoints need a login
     title = client.titles.get_title(686)
     print(title.title, title.rating)
 
@@ -54,6 +55,7 @@ from mdl import AsyncMDLClient
 
 async def main():
     async with AsyncMDLClient() as client:
+        await client.auth.login("username", "password")
         title = await client.titles.get_title(686)
         print(title.title)
 
@@ -69,6 +71,15 @@ with MDLClient() as client:
     print(profile.username)
 ```
 
+Most endpoints need a logged-in client. Since October 2026 the API rejects anonymous
+requests to title detail, credits, recommendations, search, explore feeds and every
+account/sync endpoint with a bare `400 Bad Request`; the client raises
+`MDLLoginRequiredError` (a subclass of `MDLAuthError`) for these. Genres, tag search,
+articles, reviews and public custom lists still work without logging in.
+
+Rejected credentials raise `MDLAuthError` — the API reports them as `400 "Invalid password
+or username."`, not 401.
+
 Tokens are held in an in-memory store by default. Persist them with `FileTokenStore`:
 
 ```python
@@ -77,9 +88,9 @@ from mdl import MDLClient, FileTokenStore
 client = MDLClient(token_store=FileTokenStore("~/.mydramalist/token.json"))
 ```
 
-The client clears stored tokens on 401 and raises `MDLAuthError`. Automatic
-token refresh via `refresh_token` is not yet implemented — callers must
-re-authenticate when the access token expires.
+The client clears stored tokens on 401 and raises `MDLAuthError`. Access tokens last
+30 days. Automatic token refresh via `refresh_token` is not yet implemented — callers
+must re-authenticate when the access token expires.
 
 ## Transport
 

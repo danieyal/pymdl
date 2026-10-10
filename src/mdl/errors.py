@@ -42,7 +42,20 @@ class MDLNetworkError(MDLError):
 
 
 class MDLAuthError(MDLNetworkError):
-    """401 Unauthorized. The client clears any stored bearer token before raising."""
+    """Authentication failed.
+
+    Raised for a 401 (the client clears any stored bearer token before raising) and for
+    credentials rejected by :meth:`~mdl._async.resources.auth.AuthResource.login`, which
+    the API reports as a 400.
+    """
+
+
+class MDLLoginRequiredError(MDLAuthError):
+    """The endpoint needs a logged-in client but the request carried no bearer token.
+
+    The API answers these requests with a bare ``400 Bad Request`` rather than a 401.
+    Call ``client.auth.login()`` (or pass ``token=``) first.
+    """
 
 
 class MDLForbiddenError(MDLNetworkError):
@@ -61,8 +74,27 @@ class MDLServerError(MDLNetworkError):
     """5xx server error."""
 
 
-def error_for_status(status_code: int, message: str, *, body: Any, url: str) -> MDLNetworkError:
-    """Map an HTTP status code to the most specific network-error subclass."""
+#: Message of the bare 400 the API returns when a login-only endpoint gets no bearer token.
+#: Other 400s carry a specific message (e.g. "Invalid or missing parameters. ...").
+_LOGIN_REQUIRED_MESSAGE = "Bad Request"
+
+
+def error_for_status(
+    status_code: int, message: str, *, body: Any, url: str, authenticated: bool = True
+) -> MDLNetworkError:
+    """Map an HTTP status code to the most specific network-error subclass.
+
+    ``authenticated`` says whether the request carried a bearer token; an anonymous
+    request rejected with the bare ``400 Bad Request`` maps to
+    :class:`MDLLoginRequiredError`.
+    """
+    if status_code == 400 and not authenticated and message == _LOGIN_REQUIRED_MESSAGE:
+        return MDLLoginRequiredError(
+            "This endpoint requires a logged-in client; call client.auth.login() first",
+            status_code=status_code,
+            body=body,
+            url=url,
+        )
     cls: type[MDLNetworkError]
     if status_code == 401:
         cls = MDLAuthError

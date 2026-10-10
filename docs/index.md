@@ -26,6 +26,7 @@ that production is behind Cloudflare TLS fingerprinting; see
 from mdl import MDLClient
 
 with MDLClient() as client:
+    client.auth.login("username", "password")   # title & search endpoints need a login
     title = client.titles.get_title(686)
     print(title.title, title.rating)
 ```
@@ -38,6 +39,7 @@ from mdl import AsyncMDLClient
 
 async def main():
     async with AsyncMDLClient() as client:
+        await client.auth.login("username", "password")
         print((await client.titles.get_title(686)).title)
 
 asyncio.run(main())
@@ -56,6 +58,11 @@ with MDLClient() as client:
 All errors derive from `mdl.MDLError`. HTTP failures raise `MDLNetworkError`
 subclasses (`MDLAuthError` for 401, `MDLNotFoundError` for 404, `MDLRateLimitedError` for
 429, `MDLServerError` for 5xx), each carrying `.status_code`, `.message`, and `.body`.
+
+`MDLAuthError` is also raised when `auth.login()` is given bad credentials (the API reports
+these as 400). Anonymous requests to login-only endpoints — title detail, credits,
+recommendations, search, explore feeds, account and sync — raise `MDLLoginRequiredError`,
+a subclass of `MDLAuthError`.
 
 ## Pagination
 

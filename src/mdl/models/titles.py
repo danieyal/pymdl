@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from pydantic import Field, field_validator
 
@@ -62,6 +62,14 @@ class TitleResponse(MDLModel):
     tags: Optional[list[SearchEntry]] = None
     sources: Optional[list[MovieResourceResponse]] = None
 
+    @field_validator("alt_titles", mode="before")
+    @classmethod
+    def _wrap_alt_title_strings(cls, v: Any) -> Any:
+        # The API now sends alt titles as plain strings; keep the ``{id, name}`` shape.
+        if isinstance(v, list):
+            return [{"name": item} if isinstance(item, str) else item for item in v]
+        return v
+
 
 class WatchStatusWrapper(MDLModel):
     status: Optional[int] = None
@@ -79,7 +87,8 @@ class MovieTitle(MDLModel):
     rating: Optional[float] = None
     aired_start: Optional[str] = None
     aired_end: Optional[str] = None
-    released: Optional[bool] = None
+    # A bool in sync payloads; search results send the release date string instead.
+    released: Optional[Union[bool, str]] = None
     type: Optional[str] = None
     media_type: Optional[str] = None
     country: Optional[str] = None
@@ -148,8 +157,19 @@ class MovieStatusType(str, Enum):
             MovieStatusType.NOT_INTERESTED: "Not interested",
         }[self]
 
+    @property
+    def mylist_segment(self) -> str:
+        """Path segment under ``/sync/mylist/``.
+
+        The sync API serves Currently Watching at ``/sync/mylist/watchlist``;
+        ``/sync/mylist/watching`` is a 404.
+        """
+        if self is MovieStatusType.WATCHING:
+            return "watchlist"
+        return str(self.value)
+
     def mylist_path(self) -> str:
-        return f"/sync/mylist/{self.value}"
+        return f"/sync/mylist/{self.mylist_segment}"
 
     def watchlist_path(self) -> str:
         return f"/watchlist/{self.value}"
