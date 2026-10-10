@@ -19,12 +19,15 @@ from .base import Resource
 
 
 class TitlesResource(Resource):
-    """TitleRepository — title detail, progress, reviews, recs, credits, genres, tags."""
+    """TitleRepository — title detail, progress, reviews, recs, credits, genres, tags.
+
+    Title detail, credits and recommendations require a logged-in client; anonymous
+    requests raise :class:`~mdl.errors.MDLLoginRequiredError`. Genres and tag search
+    are still public.
+    """
 
     def get_title(self, title_id: Any) -> TitleResponse:
-        req = PreparedRequest(
-            "GET", f"/titles/{title_id}", params={"expand": 1}, auth=False
-        )
+        req = PreparedRequest("GET", f"/titles/{title_id}", params={"expand": 1})
         return self._model(self._transport.request(req), TitleResponse)
 
     def get_progress(self, title_id: Any) -> Optional[Movie]:
@@ -51,13 +54,11 @@ class TitlesResource(Resource):
         return self._list(self._transport.request(req), ReviewResponse)
 
     def get_recommendations(self, title_id: Any) -> list[MovieTitle]:
-        req = PreparedRequest(
-            "GET", f"/titles/{title_id}/recommendations", auth=False
-        )
+        req = PreparedRequest("GET", f"/titles/{title_id}/recommendations")
         return self._list(self._transport.request(req), MovieTitle)
 
     def get_credits(self, title_id: Any) -> CreditsResponse:
-        req = PreparedRequest("GET", f"/titles/{title_id}/credits", auth=False)
+        req = PreparedRequest("GET", f"/titles/{title_id}/credits")
         return self._model(self._transport.request(req), CreditsResponse)
 
     def get_genres(self) -> list[SearchEntry]:
@@ -70,7 +71,7 @@ class TitlesResource(Resource):
 
 
 class SearchResource(Resource):
-    """SearchRepository — POST-based title/person search."""
+    """SearchRepository — POST-based title/person search. Requires a logged-in client."""
 
     def titles(
         self,

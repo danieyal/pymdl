@@ -21,7 +21,10 @@ StatusLike = Union[MovieStatusType, str]
 
 
 def _status_segment(status: StatusLike) -> str:
-    return status.value if isinstance(status, MovieStatusType) else status
+    try:
+        return MovieStatusType(status).mylist_segment
+    except ValueError:
+        return str(status)
 
 
 class WatchlistResource(Resource):

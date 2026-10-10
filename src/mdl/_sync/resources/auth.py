@@ -7,6 +7,7 @@ from typing import Any, Optional
 from ..._request import PreparedRequest
 from ...auth import generate_device_id, md5_password
 from ...config import UPLOAD_URL
+from ...errors import MDLAuthError, MDLNetworkError
 from ...models.auth import (
     ActionResult,
     AuthResponse,
@@ -36,7 +37,10 @@ class AuthResource(Resource):
     def login(
         self, username: str, password: str, *, device_id: Optional[str] = None
     ) -> AuthResponse:
-        """``POST /auth/login`` — password is MD5-hashed before sending."""
+        """``POST /auth/login`` — password is MD5-hashed before sending.
+
+        Raises :class:`~mdl.errors.MDLAuthError` when the credentials are rejected.
+        """
         req = PreparedRequest(
             "POST",
             "/auth/login",
@@ -44,7 +48,16 @@ class AuthResource(Resource):
             json={"username": username, "password": md5_password(password)},
             auth=False,
         )
-        return self._store(self._model(self._transport.request(req), AuthResponse))
+        try:
+            resp = self._transport.request(req)
+        except MDLNetworkError as err:
+            # Bad credentials come back as 400 "Invalid password or username.", not 401.
+            if err.status_code != 400 or isinstance(err, MDLAuthError):
+                raise
+            raise MDLAuthError(
+                err.message, status_code=err.status_code, body=err.body, url=err.url
+            ) from err
+        return self._store(self._model(resp, AuthResponse))
 
     def login_social(self, token: str, *, device_id: Optional[str] = None) -> AuthResponse:
         """``POST /auth/oauth2/firebase`` with a Firebase token."""

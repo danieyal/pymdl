@@ -8,9 +8,32 @@ import respx
 from httpx import Response
 from tests.conftest import API_KEY, BASE_URL
 
+from mdl.models.titles import MovieTitle, TitleResponse
+
+
+def test_title_alt_titles_accept_plain_strings() -> None:
+    # Live payloads now send alt titles as strings; genres/tags are still objects.
+    title = TitleResponse.model_validate(
+        {
+            "id": 18452,
+            "alt_titles": ["Goblin: The Lonely and Great God", {"id": 2, "name": "Dokkaebi"}],
+            "genres": [{"id": 17, "name": "Comedy", "slug": "comedy"}],
+        }
+    )
+    assert [a.name for a in title.alt_titles] == ["Goblin: The Lonely and Great God", "Dokkaebi"]
+    assert title.alt_titles[0].id is None
+    assert title.genres[0].name == "Comedy"
+
+
+def test_movie_title_released_accepts_bool_or_date() -> None:
+    # Search results send the release date; sync payloads send a bool.
+    assert MovieTitle.model_validate({"id": 1, "released": "2017-03-16"}).released == "2017-03-16"
+    assert MovieTitle.model_validate({"id": 1, "released": True}).released is True
+
 
 @respx.mock
 def test_get_title_sync(sync_client) -> None:
+    sync_client.tokens.set_token("TOKEN")
     route = respx.get(f"{BASE_URL}/titles/686").mock(
         return_value=Response(200, json={"id": 686, "title": "My Title", "rating": 8.5})
     )
@@ -23,8 +46,8 @@ def test_get_title_sync(sync_client) -> None:
     assert request.headers["mdl-api-key"] == API_KEY
     assert request.headers["version"] == "2.3.3"
     assert request.url.params["expand"] == "1"
-    # get_title is an unauthenticated endpoint.
-    assert "Authorization" not in request.headers
+    # Title detail needs a logged-in client, so the bearer token is attached.
+    assert request.headers["Authorization"] == "Bearer TOKEN"
 
 
 @respx.mock
