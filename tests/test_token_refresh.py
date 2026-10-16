@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pytest
@@ -11,7 +13,7 @@ import respx
 from httpx import Response
 from tests.conftest import API_KEY, BASE_URL
 
-from mdl import AsyncMDLClient
+from mdl import AsyncMDLClient, MDLClient
 from mdl.errors import MDLAuthError, MDLConfigError
 
 NEW_PAIR = {
@@ -105,6 +107,8 @@ def test_anonymous_401_does_not_refresh(sync_client) -> None:
         sync_client.auth.login("alice", "pw", device_id="d")
 
     assert not refresh.called
+    # The request carried no token, so the stored ones are not stale.
+    assert sync_client.tokens.get_refresh_token() == "R1"
 
 
 @respx.mock
@@ -136,6 +140,19 @@ def test_explicit_refresh_rejected_keeps_tokens(sync_client) -> None:
 def test_explicit_refresh_without_refresh_token(sync_client) -> None:
     with pytest.raises(MDLConfigError):
         sync_client.auth.refresh()
+
+
+@respx.mock
+async def test_explicit_refresh_401_keeps_tokens_async(async_client) -> None:
+    async_client.tokens.set_token("still-valid")
+    async_client.tokens.set_refresh_token("R1")
+    respx.post(f"{BASE_URL}/auth/refresh").mock(return_value=EXPIRED)
+
+    with pytest.raises(MDLAuthError):
+        await async_client.auth.refresh()
+
+    assert async_client.tokens.get_token() == "still-valid"
+    assert async_client.tokens.get_refresh_token() == "R1"
 
 
 @respx.mock
@@ -176,6 +193,36 @@ class _ConcurrentExpiryClient:
             await self.both_sent.wait()
             return _FakeResponse(401, {"code": 401, "message": "Invalid access token."})
         return _FakeResponse(200, {"username": "alice"})
+
+
+class _ThreadedExpiryClient:
+    """Sync twin of :class:`_ConcurrentExpiryClient`, for two threads."""
+
+    def __init__(self) -> None:
+        self.both_sent = threading.Barrier(2, timeout=5)
+        self.refresh_calls = 0
+
+    def request(self, method: str, url: str, **kwargs: Any) -> _FakeResponse:
+        if url.endswith("/auth/refresh"):
+            self.refresh_calls += 1
+            return _FakeResponse(200, NEW_PAIR)
+        if kwargs["headers"].get("Authorization") == "Bearer old":
+            self.both_sent.wait()
+            return _FakeResponse(401, {"code": 401, "message": "Invalid access token."})
+        return _FakeResponse(200, {"username": "alice"})
+
+
+def test_concurrent_401s_refresh_once_across_threads() -> None:
+    http_client = _ThreadedExpiryClient()
+    client = MDLClient(api_key=API_KEY, token="old", http_client=http_client)
+    client.tokens.set_refresh_token("R1")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        profiles = list(pool.map(lambda _: client.account.get_profile(), range(2)))
+
+    assert [p.username for p in profiles] == ["alice", "alice"]
+    assert http_client.refresh_calls == 1
+    assert client.tokens.get_token() == "new"
 
 
 async def test_concurrent_401s_refresh_once() -> None:

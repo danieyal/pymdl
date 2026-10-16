@@ -53,8 +53,6 @@ class SyncTransport:
             timeout=config.timeout, impersonate=cast(Any, config.impersonate)
         )
         self._owns_client = client is None
-        # Created on first use so the async lock binds to the running event loop.
-        self._refresh_lock: Optional[Lock] = None
 
     @property
     def config(self) -> ClientConfig:
@@ -102,9 +100,11 @@ class SyncTransport:
 
     def _refresh_after_401(self, failed_token: str) -> bool:
         """Refresh the token pair after ``failed_token`` got a 401. Returns whether to retry."""
-        if self._refresh_lock is None:
-            self._refresh_lock = Lock()
-        with self._refresh_lock:
+        # Created on first use so an async lock binds to the running event loop (Python 3.9
+        # binds it at creation). dict.setdefault is atomic, so threads using the sync
+        # client always share one lock.
+        lock: Lock = self.__dict__.setdefault("_refresh_lock", Lock())
+        with lock:
             current = self.tokens.get_token()
             if current is not None and current != failed_token:
                 # Another request refreshed the pair while this one waited for the lock.
@@ -152,7 +152,9 @@ class SyncTransport:
                 parsed = None
 
         if response.status_code >= 400:
-            if response.status_code == 401:
+            if response.status_code == 401 and authenticated:
+                # Only a rejected bearer token is stale; an anonymous 401 (a refresh or
+                # social login) leaves the stored tokens alone.
                 self.tokens.clear()
             message = extract_error_message(parsed if parsed is not None else text)
             raise error_for_status(
