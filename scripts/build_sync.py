@@ -23,6 +23,7 @@ REPLACEMENTS = {
     "AsyncSession": "Session",  # curl_cffi.requests.AsyncSession -> Session
     "AsyncTransport": "SyncTransport",
     "AsyncResource": "Resource",
+    "asyncio": "threading",  # from asyncio import Lock -> from threading import Lock
     "aclose": "close",
     "__aenter__": "__enter__",
     "__aexit__": "__exit__",
