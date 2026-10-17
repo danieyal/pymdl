@@ -8,7 +8,17 @@ import respx
 from httpx import Response
 from tests.conftest import API_KEY, BASE_URL
 
+from mdl.models.auth import UserProfileResponse
 from mdl.models.titles import MovieTitle, TitleResponse
+
+
+def test_people_search_result_keeps_url() -> None:
+    # People search sends a site path in ``url`` and no ``slug``.
+    person = UserProfileResponse.model_validate(
+        {"id": 440, "name": "Gong Yoo", "url": "/people/440-gong-yoo", "object": "person"}
+    )
+    assert person.url == "/people/440-gong-yoo"
+    assert person.slug is None
 
 
 def test_title_alt_titles_accept_plain_strings() -> None:

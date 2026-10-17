@@ -37,13 +37,11 @@ class TokenStore(Protocol):
 
     .. note::
 
-       The ``refresh_token`` is stored after login but is **not** automatically consumed
-       by the client — there is no auto-refresh on 401.
-       When an authenticated request receives a 401
-       (for example, because the access token expires), an
-       :class:`~mdl.errors.MDLAuthError` is raised and the
-       stored token is cleared.
-       The caller must re-login manually.
+       When an authenticated request receives a 401 (for example, because the access
+       token expired), the client exchanges the stored ``refresh_token`` for a new pair
+       once, saves it with :meth:`set_token` / :meth:`set_refresh_token`, and retries.
+       If that fails, the stored tokens are cleared and
+       :class:`~mdl.errors.MDLAuthError` is raised; the caller must log in again.
     """
 
     def get_token(self) -> Optional[str]: ...

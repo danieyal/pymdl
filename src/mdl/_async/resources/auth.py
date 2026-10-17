@@ -59,6 +59,16 @@ class AuthResource(AsyncResource):
             ) from err
         return self._store(self._model(resp, AuthResponse))
 
+    async def refresh(self, refresh_token: Optional[str] = None) -> AuthResponse:
+        """``POST /auth/refresh`` — exchange a refresh token for a new token pair.
+
+        Uses the stored refresh token unless one is given, and stores the new pair. The
+        client already does this automatically when a request gets a 401; call it to
+        refresh ahead of expiry. Raises :class:`~mdl.errors.MDLAuthError` when the
+        refresh token is rejected.
+        """
+        return await self._transport.refresh(refresh_token)
+
     async def login_social(self, token: str, *, device_id: Optional[str] = None) -> AuthResponse:
         """``POST /auth/oauth2/firebase`` with a Firebase token."""
         req = PreparedRequest(

@@ -53,6 +53,9 @@ with MDLClient() as client:
     print(client.account.get_profile().username)
 ```
 
+On a 401 the client exchanges the stored refresh token for a new pair once and retries
+the request. `client.auth.refresh()` does the same on demand.
+
 ## Errors
 
 All errors derive from `mdl.MDLError`. HTTP failures raise `MDLNetworkError`

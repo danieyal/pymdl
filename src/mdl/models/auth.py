@@ -46,6 +46,8 @@ class UserProfileResponse(MDLModel):
     biography: Optional[str] = None
     permalink: Optional[str] = None
     slug: Optional[str] = None
+    # Search results send a site path (``/people/440-gong-yoo``) here and no ``slug``.
+    url: Optional[str] = None
     birthday: Optional[str] = None
     dod: Optional[str] = None
     nationality: Optional[str] = None

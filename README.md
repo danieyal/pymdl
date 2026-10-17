@@ -88,9 +88,11 @@ from mdl import MDLClient, FileTokenStore
 client = MDLClient(token_store=FileTokenStore("~/.mydramalist/token.json"))
 ```
 
-The client clears stored tokens on 401 and raises `MDLAuthError`. Access tokens last
-30 days. Automatic token refresh via `refresh_token` is not yet implemented — callers
-must re-authenticate when the access token expires.
+Access tokens last 30 days. When a request gets a 401, the client exchanges the stored
+refresh token for a new pair once and retries; a `FileTokenStore` saves the new pair. If
+there is no refresh token or the refresh is rejected, the stored tokens are cleared and
+`MDLAuthError` is raised, so log in again. Call `client.auth.refresh()` to refresh ahead of
+expiry.
 
 ## Transport
 
