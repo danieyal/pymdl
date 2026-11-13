@@ -16,7 +16,7 @@ from ...models.auth import (
     ProfileUploadResponse,
     UserProfileResponse,
 )
-from ...models.misc import ActivitiesResponse, Coin, CoinResponse, PersonStats
+from ...models.misc import ActivitiesResponse, Coin, CoinResponse, UserStats
 from ...models.reviews import CreditsResponse
 from ...models.titles import Movie
 from .base import Resource
@@ -290,9 +290,13 @@ class UsersResource(Resource):
         )
         return self._str(self._transport.request(req))
 
-    def get_user_stats(self, user_id: Any) -> PersonStats:
+    def get_user_stats(self, user_id: Any) -> UserStats:
+        """``GET /users/{id}/stats`` — list totals, watch time and score distribution.
+
+        ``user_id`` is the username (``account.get_profile().username``).
+        """
         req = PreparedRequest("GET", f"/users/{user_id}/stats")
-        return self._model(self._transport.request(req), PersonStats)
+        return self._model(self._transport.request(req), UserStats)
 
     def get_user_watchlist(self, **params: Any) -> list[Movie]:
         req = PreparedRequest("GET", "/sync/mylist/watchlist", params=params or None)

@@ -38,6 +38,7 @@ from .errors import (
     MDLNotFoundError,
     MDLRateLimitedError,
     MDLServerError,
+    MDLSyncError,
 )
 from .pagination import Page
 
@@ -60,4 +61,5 @@ __all__ = [
     "MDLNotFoundError",
     "MDLRateLimitedError",
     "MDLServerError",
+    "MDLSyncError",
 ]

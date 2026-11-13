@@ -74,6 +74,20 @@ class MDLServerError(MDLNetworkError):
     """5xx server error."""
 
 
+class MDLSyncError(MDLError):
+    """The watchlist sync endpoint rejected a title.
+
+    ``POST /sync/mylist`` answers ``200`` and lists rejected titles under ``failed``
+    (e.g. "This show has not aired yet."). ``failures`` holds those entries; the
+    exception message is the first one's reason.
+    """
+
+    def __init__(self, failures: list[Any]) -> None:
+        self.failures = failures
+        reason = getattr(failures[0], "message", None) if failures else None
+        super().__init__(reason or "The watchlist update was rejected")
+
+
 #: Message of the bare 400 the API returns when a login-only endpoint gets no bearer token.
 #: Other 400s carry a specific message (e.g. "Invalid or missing parameters. ...").
 _LOGIN_REQUIRED_MESSAGE = "Bad Request"

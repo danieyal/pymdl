@@ -56,6 +56,18 @@ with MDLClient() as client:
 On a 401 the client exchanges the stored refresh token for a new pair once and retries
 the request. `client.auth.refresh()` does the same on demand.
 
+## Lists
+
+```python
+client.watchlist.update(18452, episode_seen=5)          # other fields are kept
+client.watchlist.update(36269, status="plantowatch")    # adds the title
+client.watchlist.remove([36269])
+```
+
+`POST /sync/mylist` replaces each stored entry with the one sent, so `watchlist.update()`
+reads the current entry and sends it back whole. Titles the server rejects (for example
+"This show has not aired yet.") raise `MDLSyncError`.
+
 ## Errors
 
 All errors derive from `mdl.MDLError`. HTTP failures raise `MDLNetworkError`

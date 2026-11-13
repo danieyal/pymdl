@@ -45,9 +45,11 @@ from .misc import (
     PersonStats,
     PersonSummary,
     Quarter,
+    RatingsSummary,
     Subscription,
     SubscriptionHistory,
     SubscriptionSettings,
+    UserStats,
 )
 from .reviews import (
     Author,
@@ -81,6 +83,7 @@ from .titles import (
     MovieResourceResponse,
     MovieStatusType,
     MovieTitle,
+    SyncFailure,
     SyncWatchListResponse,
     TitleResponse,
     WatchPoints,
@@ -110,6 +113,7 @@ __all__ = [
     "WatchPoints",
     "LastActivity",
     "SyncWatchListResponse",
+    "SyncFailure",
     # reviews & comments
     "ReviewResponse",
     "Ratings",
@@ -165,5 +169,7 @@ __all__ = [
     "Quarter",
     "PersonStats",
     "PersonSummary",
+    "RatingsSummary",
+    "UserStats",
     "AwardResponse",
 ]
