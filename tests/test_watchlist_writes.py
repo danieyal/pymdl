@@ -338,3 +338,56 @@ def test_transport_failure_raises_connection_error(sync_client) -> None:
 
     assert isinstance(excinfo.value, MDLError)
     assert isinstance(excinfo.value.__cause__, httpx.ConnectTimeout)
+
+
+@respx.mock
+def test_refresh_outage_raises_connection_error_and_keeps_tokens(sync_client) -> None:
+    sync_client.tokens.set_token("expired")
+    sync_client.tokens.set_refresh_token("refresh")
+    respx.get(f"{BASE_URL}/users/settings").mock(return_value=Response(401, json={}))
+    respx.post(f"{BASE_URL}/auth/refresh").mock(side_effect=httpx.ReadTimeout("timed out"))
+
+    with pytest.raises(MDLConnectionError):
+        sync_client.account.get_profile()
+
+    # A refresh that never reached the server is not a rejection.
+    assert sync_client.tokens.get_refresh_token() == "refresh"
+
+
+@respx.mock
+def test_update_unknown_title_raises_sync_error(sync_client) -> None:
+    sync_client.tokens.set_token("t")
+    respx.post(f"{BASE_URL}/sync/mylist").mock(
+        return_value=Response(
+            200, json={"success": {"titles": 0}, "not_found": {"titles": [{"id": 999999999}]}}
+        )
+    )
+    current = Movie(list_id=3, title=MovieTitle(id=999999999))
+
+    with pytest.raises(MDLSyncError, match="Title not found") as excinfo:
+        sync_client.watchlist.update(999999999, episode_seen=0, current=current)
+
+    assert excinfo.value.failures[0].id == 999999999
+
+
+@respx.mock
+def test_update_resaves_when_restored_entry_has_old_rewatch_count(sync_client) -> None:
+    sync_client.tokens.set_token("t")
+    respx.get(f"{BASE_URL}/titles/{TITLE_ID}/progress").mock(
+        side_effect=[
+            Response(200, json=_progress(list_id=0, episode_seen=0, rating=0)),
+            # Only the restored rewatch count differs; the server-set start date does not
+            # count as a difference.
+            Response(
+                200,
+                json=_progress(list_id=1, episode_seen=0, rating=0, times_rewatched=2),
+            ),
+        ]
+    )
+    route = respx.post(f"{BASE_URL}/sync/mylist").mock(
+        return_value=Response(200, json={"success": {"titles": 1}})
+    )
+
+    sync_client.watchlist.update(TITLE_ID, status="watching", episode_seen=0)
+
+    assert route.call_count == 2

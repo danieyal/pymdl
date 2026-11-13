@@ -269,8 +269,9 @@ class _SyncFailed(MDLModel):
 class SyncWatchListResponse(MDLModel):
     """Result of ``POST`` / ``DELETE /sync/mylist``.
 
-    The endpoint answers ``200`` even when it rejects titles; those land in
-    :attr:`failed` with the server's reason.
+    The endpoint answers ``200`` even when it rejects titles: those land in
+    :attr:`failed` with the server's reason, and unknown title ids in :attr:`not_found`.
+    :attr:`failures` combines both.
     """
 
     success: Optional[_SyncSuccess] = None
@@ -280,4 +281,7 @@ class SyncWatchListResponse(MDLModel):
 
     @property
     def failures(self) -> list[SyncFailure]:
-        return list(self.failed.titles or []) if self.failed else []
+        """Every title that was not saved: rejected ones, then unknown ids."""
+        failed = list(self.failed.titles or []) if self.failed else []
+        missing = self.not_found.titles or [] if self.not_found else []
+        return failed + [SyncFailure(id=entry.id, message="Title not found.") for entry in missing]

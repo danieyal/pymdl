@@ -119,6 +119,10 @@ class AsyncTransport:
                 return False
             try:
                 await self.refresh()
+            except MDLConnectionError:
+                # The refresh never reached the server; the stored tokens may still be
+                # good, so report the outage instead of treating it as a rejection.
+                raise
             except MDLError:
                 return False
             return True

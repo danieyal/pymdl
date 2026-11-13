@@ -48,8 +48,10 @@ def _date_str(value: Optional[DateLike]) -> Optional[str]:
 def _progress_differs(stored: Movie, sent: Movie) -> bool:
     if (stored.list_id, stored.episode_seen) != (sent.list_id, sent.episode_seen):
         return True
-    if (stored.rating or 0) != (sent.rating or 0):
-        return True
+    # Dates are left out: the server fills date_start / date_finish on status changes.
+    for field in ("rating", "priority", "times_rewatched", "rewatch_value"):
+        if (getattr(stored, field) or 0) != (getattr(sent, field) or 0):
+            return True
     # An empty note means "keep the stored note", so only a non-empty one must match.
     return bool(sent.note) and stored.note != sent.note
 
