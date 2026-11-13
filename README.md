@@ -94,6 +94,45 @@ there is no refresh token or the refresh is rejected, the stored tokens are clea
 `MDLAuthError` is raised, so log in again. Call `client.auth.refresh()` to refresh ahead of
 expiry.
 
+## Your lists
+
+```python
+from mdl import MDLClient, MDLSyncError
+from mdl.models import MovieStatusType
+
+with MDLClient() as client:
+    client.auth.login("username", "password")
+    for entry in client.watchlist.fetch(MovieStatusType.WATCHING):
+        print(entry.title.title, entry.episode_seen, "/", entry.title.episodes)
+
+    # Change one entry; fields you don't pass keep their current values.
+    client.watchlist.update(18452, episode_seen=5)
+    client.watchlist.update(18452, status=MovieStatusType.COMPLETED, rating=9.5)
+    client.watchlist.update(36269, status="plantowatch")  # adds the title
+
+    client.watchlist.remove([36269])
+```
+
+`POST /sync/mylist` takes a JSON array of entries and **replaces** each stored entry, so
+a field left out of the body is reset (an omitted `rating` clears the score).
+`watchlist.update()` reads the current entry first and sends it back whole;
+`watchlist.save()` sends entries as given. Moving a title to Completed without an
+`episode_seen` marks every episode seen, as the app does.
+
+The endpoint answers `200` even when it rejects a title, listing it under `failed` with
+a reason such as "This show has not aired yet." or "Invalid episode seen value.".
+`update()` raises `MDLSyncError` for these; `save()` returns them in
+`SyncWatchListResponse.failures`. An empty `note` leaves the stored note alone (the API
+cannot clear a note), and the first save of a title that was once removed restores its
+old progress, which `update()` corrects with a second save.
+
+`watchlist.get_last_activities().all` changes whenever any list changes (removals
+included), so you can poll it instead of refetching every list.
+
+`client.users.get_user_stats(username)` returns watch time, episode counts and the score
+distribution; `client.calendar.episodes()` returns the airing schedule for the week
+starting the previous UTC day, with `add_status` set on titles in your lists.
+
 ## Transport
 
 Production MyDramaList sits behind **Cloudflare bot protection** that fingerprints the

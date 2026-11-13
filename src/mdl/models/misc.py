@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as _dt
 from typing import Any, Optional
 
 from .base import MDLModel
@@ -114,14 +115,35 @@ class Leaderboard(MDLModel):
     entries: Optional[list[Entries]] = None
 
 
+def _from_timestamp(value: Optional[int]) -> Optional[_dt.datetime]:
+    return _dt.datetime.fromtimestamp(value, _dt.timezone.utc) if value else None
+
+
 class EpisodeItem(MDLModel):
+    """One airing in the calendar (``POST /calendar/episodes``).
+
+    ``rid`` is the title id (it matches an :class:`EpisodeRelationship`'s ``id``);
+    ``episode_number`` is ``0`` for a movie or special. Timestamps are Unix seconds.
+    """
+
     id: Optional[Any] = None
     rid: Optional[Any] = None
     episode_number: Optional[int] = None
-    released_at: Optional[str] = None
+    released_at: Optional[int] = None
+    #: Minutes; ``0`` when unknown.
     duration: Optional[int] = None
     permalink: Optional[str] = None
-    original_release_date: Optional[str] = None
+    #: Set when the airing was rescheduled; the originally announced time.
+    original_release_date: Optional[int] = None
+
+    @property
+    def released_datetime(self) -> Optional[_dt.datetime]:
+        """:attr:`released_at` as an aware UTC datetime."""
+        return _from_timestamp(self.released_at)
+
+    @property
+    def original_release_datetime(self) -> Optional[_dt.datetime]:
+        return _from_timestamp(self.original_release_date)
 
 
 class EpisodeRelationship(MDLModel):
@@ -134,17 +156,32 @@ class EpisodeRelationship(MDLModel):
     type: Optional[str] = None
     synopsis: Optional[str] = None
     url: Optional[str] = None
+    #: Comma-separated genre names, e.g. ``"Life,Drama"``.
     genres: Optional[Any] = None
     thumbnail: Optional[str] = None
     cover: Optional[str] = None
     rating: Optional[float] = None
     timezone: Optional[str] = None
+    #: ``True`` when the title is on one of the logged-in user's lists.
     add_status: Optional[Any] = None
 
 
 class Episodes(MDLModel):
+    """The airing calendar: a rolling week of episodes, starting the previous UTC day.
+
+    ``items`` are the airings and ``relationships`` the titles they belong to; see
+    :meth:`title_for`.
+    """
+
     items: Optional[list[EpisodeItem]] = None
     relationships: Optional[list[EpisodeRelationship]] = None
+
+    def title_for(self, item: EpisodeItem) -> Optional[EpisodeRelationship]:
+        """The relationship (title) an airing belongs to."""
+        for rel in self.relationships or []:
+            if rel.id == item.rid:
+                return rel
+        return None
 
 
 class Quarter(MDLModel):
@@ -178,10 +215,55 @@ class PersonStats(MDLModel):
 
 
 class PersonSummary(MDLModel):
+    """Per-content-type totals, e.g. ``{"type": "Drama", "watched": 3343, ...}``.
+
+    ``watched`` counts episodes (one per movie), ``minutes`` the time spent on them.
+    """
+
     type: Optional[str] = None
     collected: Optional[int] = None
     watched: Optional[int] = None
     minutes: Optional[int] = None
+    ratings: Optional[int] = None
+
+
+class RatingsSummary(MDLModel):
+    total: Optional[int] = None
+    #: Score (as a string such as ``"8.5"``) to the number of titles given that score.
+    distribution: Optional[dict[str, int]] = None
+
+    @property
+    def mean(self) -> Optional[float]:
+        """The average score across rated titles, or ``None`` with no ratings."""
+        pairs = [(float(score), count) for score, count in (self.distribution or {}).items()]
+        total = sum(count for _, count in pairs)
+        if not total:
+            return None
+        return sum(score * count for score, count in pairs) / total
+
+
+class UserStats(PersonStats):
+    """``GET /users/{id}/stats`` — list totals, watch time and rating distribution.
+
+    ``mylists`` maps a list segment (``watchlist``, ``completed``, ``plantowatch``,
+    ``onhold``, ``dropped``, ``notinterested``) to per-type totals. ``stats`` holds the
+    overall totals, split into ``"Shows"`` and ``"Movie"``.
+    """
+
+    mylists: Optional[dict[str, list[PersonSummary]]] = None
+    stats: Optional[list[PersonSummary]] = None
+    ratings: Optional[RatingsSummary] = None
+
+    def total(self, type: Optional[str] = None) -> PersonSummary:
+        """Sum :attr:`stats` across types, or for one ``type`` (``"Shows"``/``"Movie"``)."""
+        rows = [row for row in self.stats or [] if type is None or row.type == type]
+        return PersonSummary(
+            type=type,
+            collected=sum(row.collected or 0 for row in rows),
+            watched=sum(row.watched or 0 for row in rows),
+            minutes=sum(row.minutes or 0 for row in rows),
+            ratings=sum(row.ratings or 0 for row in rows),
+        )
 
 
 class AwardResponse(MDLModel):

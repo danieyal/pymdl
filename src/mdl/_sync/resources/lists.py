@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Union
+import datetime as _dt
+from typing import Any, Iterable, Mapping, Optional, Union
 
 from ..._request import PreparedRequest
-from ...errors import MDLNotFoundError
+from ...errors import MDLNotFoundError, MDLSyncError
 from ...models.lists import (
     CustomListDetail,
     CustomListDetailItem,
@@ -14,10 +15,21 @@ from ...models.lists import (
     WatchStatusList,
 )
 from ...models.reviews import Comment, CommentReplyResponse, CommentResponse
-from ...models.titles import LastActivity, Movie, MovieStatusType, SyncWatchListResponse
+from ...models.titles import (
+    LastActivity,
+    Movie,
+    MovieStatusType,
+    MovieTitle,
+    SyncWatchListResponse,
+)
 from .base import Resource
 
 StatusLike = Union[MovieStatusType, str]
+WatchlistEntry = Union[Movie, Mapping[str, Any]]
+DateLike = Union[_dt.date, str]
+
+#: Response-only fields that the sync endpoint does not take back.
+_READ_ONLY_FIELDS = {"id", "updated_at", "created_at", "deleted"}
 
 
 def _status_segment(status: StatusLike) -> str:
@@ -25,6 +37,34 @@ def _status_segment(status: StatusLike) -> str:
         return MovieStatusType(status).mylist_segment
     except ValueError:
         return str(status)
+
+
+def _date_str(value: Optional[DateLike]) -> Optional[str]:
+    if isinstance(value, _dt.date):
+        return value.isoformat()
+    return value
+
+
+def _progress_differs(stored: Movie, sent: Movie) -> bool:
+    if (stored.list_id, stored.episode_seen) != (sent.list_id, sent.episode_seen):
+        return True
+    # Dates are left out: the server fills date_start / date_finish on status changes.
+    for field in ("rating", "priority", "times_rewatched", "rewatch_value"):
+        if (getattr(stored, field) or 0) != (getattr(sent, field) or 0):
+            return True
+    # An empty note means "keep the stored note", so only a non-empty one must match.
+    return bool(sent.note) and stored.note != sent.note
+
+
+def _entry_body(entry: WatchlistEntry) -> dict[str, Any]:
+    if not isinstance(entry, Movie):
+        return dict(entry)
+    if entry.title is None:
+        raise ValueError("A watchlist entry needs a title")
+    body = entry.model_dump(exclude_none=True, exclude=_READ_ONLY_FIELDS)
+    # The title is identified by id alone; its other fields are server-owned.
+    body["title"] = {"id": entry.title.id}
+    return body
 
 
 class WatchlistResource(Resource):
@@ -55,12 +95,117 @@ class WatchlistResource(Resource):
             return LastActivity()
         return self._model(resp, LastActivity)
 
-    def add(self, item: dict[str, Any]) -> SyncWatchListResponse:
-        req = PreparedRequest("POST", "/sync/mylist", json=item)
+    def save(self, entries: Iterable[WatchlistEntry]) -> SyncWatchListResponse:
+        """``POST /sync/mylist`` — add or overwrite list entries.
+
+        The body is a JSON array of entries, each naming its title as
+        ``{"title": {"id": …}}``. An entry **replaces** the stored one: a field left out
+        is reset (an omitted ``rating`` clears the score), so send complete entries or
+        use :meth:`update`. Rejected titles are reported in the response's ``failed``
+        (see :attr:`SyncWatchListResponse.failures`), not as an HTTP error.
+        """
+        body = [_entry_body(entry) for entry in entries]
+        req = PreparedRequest("POST", "/sync/mylist", json=body)
         return self._model(self._transport.request(req), SyncWatchListResponse)
 
+    def add(
+        self, item: Union[WatchlistEntry, list[WatchlistEntry]]
+    ) -> SyncWatchListResponse:
+        """Alias of :meth:`save` that also accepts a single entry."""
+        return self.save(item if isinstance(item, list) else [item])
+
+    def get_progress(self, title_id: Any) -> Movie:
+        """``GET /titles/{id}/progress`` — the user's entry for a title.
+
+        A title on none of the user's lists comes back with ``list_id == 0``.
+        """
+        req = PreparedRequest("GET", f"/titles/{title_id}/progress")
+        movie = self._model_opt(self._transport.request(req), Movie)
+        return movie or Movie(list_id=0, title=MovieTitle(id=int(title_id)))
+
+    def update(
+        self,
+        title_id: Any,
+        *,
+        status: Optional[StatusLike] = None,
+        episode_seen: Optional[int] = None,
+        rating: Optional[float] = None,
+        date_start: Optional[DateLike] = None,
+        date_finish: Optional[DateLike] = None,
+        times_rewatched: Optional[int] = None,
+        rewatch_value: Optional[int] = None,
+        priority: Optional[int] = None,
+        note: Optional[str] = None,
+        current: Optional[Movie] = None,
+    ) -> Movie:
+        """Change one title's list entry, keeping every field that is not passed.
+
+        Reads the current entry (or uses ``current``), applies the changes and saves the
+        whole entry, since :meth:`save` would reset omitted fields. ``status`` is
+        required for a title that is on none of the user's lists. Moving a title to
+        :attr:`MovieStatusType.COMPLETED` without an ``episode_seen`` marks every episode
+        seen, as the app does. ``rating`` is a score from 0 (unrated) to 10. An empty
+        ``note`` leaves the stored note unchanged; the server cannot clear a note.
+
+        Returns the saved entry. Raises :class:`~mdl.errors.MDLSyncError` when the server
+        rejects the change (for example "Invalid episode seen value." or "This show has
+        not aired yet.") and :class:`ValueError` for arguments it cannot send.
+        """
+        if rating is not None and not 0 <= rating <= 10:
+            raise ValueError("rating must be between 0 and 10")
+        if episode_seen is not None and episode_seen < 0:
+            raise ValueError("episode_seen cannot be negative")
+        new_status = MovieStatusType(status) if status is not None else None
+        if new_status is not None and new_status.list_id is None:
+            raise ValueError(f"Setting the {new_status.label!r} status is not supported")
+
+        if current is None:
+            current = self.get_progress(title_id)
+        changes: dict[str, Any] = {
+            "episode_seen": episode_seen,
+            "rating": rating,
+            "date_start": _date_str(date_start),
+            "date_finish": _date_str(date_finish),
+            "times_rewatched": times_rewatched,
+            "rewatch_value": rewatch_value,
+            "priority": priority,
+            "note": note,
+        }
+        if new_status is not None:
+            changes["list_id"] = new_status.list_id
+        entry = current.model_copy(
+            update={key: value for key, value in changes.items() if value is not None}
+        )
+        if not entry.list_id:
+            raise ValueError("status is required for a title that is on none of your lists")
+        title = entry.title or MovieTitle(id=int(title_id))
+        if (
+            new_status is MovieStatusType.COMPLETED
+            and episode_seen is None
+            and title.episodes
+        ):
+            entry.episode_seen = title.episodes
+        entry.title = title
+
+        self._save_one(entry)
+        if not current.list_id:
+            # Re-adding a title that was once removed restores the old entry's
+            # progress and note on that first save; save again so the request sticks.
+            stored = self.get_progress(title_id)
+            if _progress_differs(stored, entry):
+                self._save_one(entry)
+        return entry
+
+    def _save_one(self, entry: Movie) -> None:
+        result = self.save([entry])
+        if result.failures:
+            raise MDLSyncError(result.failures)
+
     def remove(self, ids: list[int]) -> SyncWatchListResponse:
-        """``DELETE /sync/mylist`` with a JSON array body ``[{"id": …}, …]``."""
+        """``DELETE /sync/mylist`` — remove titles (by title id) from the user's lists.
+
+        Sends a JSON array body ``[{"id": …}, …]``.
+        """
         req = PreparedRequest(
             "DELETE", "/sync/mylist", json=[{"id": i} for i in ids]
         )

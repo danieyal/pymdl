@@ -31,6 +31,7 @@ from .config import ClientConfig, Environment
 from .errors import (
     MDLAuthError,
     MDLConfigError,
+    MDLConnectionError,
     MDLError,
     MDLForbiddenError,
     MDLLoginRequiredError,
@@ -38,6 +39,7 @@ from .errors import (
     MDLNotFoundError,
     MDLRateLimitedError,
     MDLServerError,
+    MDLSyncError,
 )
 from .pagination import Page
 
@@ -53,6 +55,7 @@ __all__ = [
     "FileTokenStore",
     "MDLError",
     "MDLConfigError",
+    "MDLConnectionError",
     "MDLNetworkError",
     "MDLAuthError",
     "MDLLoginRequiredError",
@@ -60,4 +63,5 @@ __all__ = [
     "MDLNotFoundError",
     "MDLRateLimitedError",
     "MDLServerError",
+    "MDLSyncError",
 ]
