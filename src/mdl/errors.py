@@ -18,6 +18,13 @@ class MDLConfigError(MDLError):
     """Invalid or missing client configuration (e.g. no api key)."""
 
 
+class MDLConnectionError(MDLError):
+    """The request got no HTTP response: a timeout, DNS, TLS or connection failure.
+
+    The underlying exception from the HTTP client is chained as ``__cause__``.
+    """
+
+
 class MDLNetworkError(MDLError):
     """A non-2xx HTTP response.
 

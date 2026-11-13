@@ -31,6 +31,7 @@ from .config import ClientConfig, Environment
 from .errors import (
     MDLAuthError,
     MDLConfigError,
+    MDLConnectionError,
     MDLError,
     MDLForbiddenError,
     MDLLoginRequiredError,
@@ -54,6 +55,7 @@ __all__ = [
     "FileTokenStore",
     "MDLError",
     "MDLConfigError",
+    "MDLConnectionError",
     "MDLNetworkError",
     "MDLAuthError",
     "MDLLoginRequiredError",

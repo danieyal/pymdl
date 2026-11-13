@@ -73,6 +73,8 @@ reads the current entry and sends it back whole. Titles the server rejects (for 
 All errors derive from `mdl.MDLError`. HTTP failures raise `MDLNetworkError`
 subclasses (`MDLAuthError` for 401, `MDLNotFoundError` for 404, `MDLRateLimitedError` for
 429, `MDLServerError` for 5xx), each carrying `.status_code`, `.message`, and `.body`.
+A request that gets no response at all (timeout, DNS or TLS failure) raises
+`MDLConnectionError`.
 
 `MDLAuthError` is also raised when `auth.login()` is given bad credentials (the API reports
 these as 400). Anonymous requests to login-only endpoints — title detail, credits,

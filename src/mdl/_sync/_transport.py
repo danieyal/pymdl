@@ -17,7 +17,13 @@ from .._request import (
 )
 from ..auth import InMemoryTokenStore, TokenStore
 from ..config import ClientConfig
-from ..errors import MDLAuthError, MDLConfigError, MDLError, error_for_status
+from ..errors import (
+    MDLAuthError,
+    MDLConfigError,
+    MDLConnectionError,
+    MDLError,
+    error_for_status,
+)
 from ..models.auth import AuthResponse
 
 
@@ -136,9 +142,13 @@ class SyncTransport:
         elif prepared.json is not None:
             kwargs["json"] = prepared.json
 
-        return self._client.request(
-            prepared.method, prepared.url(self._config.base_url), **kwargs
-        )
+        url = prepared.url(self._config.base_url)
+        try:
+            return self._client.request(prepared.method, url, **kwargs)
+        except Exception as err:
+            # curl_cffi (or an injected client) raises its own types for timeouts and
+            # connection failures; keep the "every error is an MDLError" contract.
+            raise MDLConnectionError(f"{type(err).__name__}: {err} ({url})") from err
 
     def _process(
         self, response: Any, url: str, *, authenticated: bool = True

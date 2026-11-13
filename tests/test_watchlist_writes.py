@@ -8,12 +8,13 @@ from __future__ import annotations
 import datetime as dt
 import json
 
+import httpx
 import pytest
 import respx
 from httpx import Response
 from tests.conftest import BASE_URL
 
-from mdl import MDLSyncError
+from mdl import MDLConnectionError, MDLError, MDLSyncError
 from mdl.models import Movie, MovieStatusType, MovieTitle
 
 TITLE_ID = 713793
@@ -326,3 +327,14 @@ def test_user_stats(sync_client) -> None:
     assert stats.mylists["completed"][0].collected == 209
     assert stats.ratings.mean == pytest.approx(26 / 3)
     assert stats.friends == 22
+
+
+@respx.mock
+def test_transport_failure_raises_connection_error(sync_client) -> None:
+    respx.get(f"{BASE_URL}/genres").mock(side_effect=httpx.ConnectTimeout("timed out"))
+
+    with pytest.raises(MDLConnectionError, match="ConnectTimeout") as excinfo:
+        sync_client.titles.get_genres()
+
+    assert isinstance(excinfo.value, MDLError)
+    assert isinstance(excinfo.value.__cause__, httpx.ConnectTimeout)
